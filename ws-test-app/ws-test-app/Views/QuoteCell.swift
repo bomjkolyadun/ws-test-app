@@ -10,17 +10,16 @@ import UIKit
 
 class QuoteCell: UITableViewCell {
 
-    
+    @IBOutlet weak var symbolLabel: UILabel!
+    @IBOutlet weak var bidAskLabel: UILabel!
+    @IBOutlet weak var spreadLabel: UILabel!
 
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        // Initialization code
-    }
-
-    override func setSelected(_ selected: Bool, animated: Bool) {
-        super.setSelected(selected, animated: animated)
-
-        // Configure the view for the selected state
+    func setup(tick: Quote) {
+        var symbol = tick.symbol
+        symbol.insert("/", at: symbol.index(symbol.startIndex, offsetBy: 3))
+        symbolLabel.text =  symbol
+        bidAskLabel.text = tick.bid + "/" + tick.ask
+        spreadLabel.text = tick.spread
     }
 
 }

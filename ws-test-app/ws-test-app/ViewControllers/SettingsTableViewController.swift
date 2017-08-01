@@ -8,21 +8,16 @@
 
 import UIKit
 
-enum Symbol: String {
-    case EURUSD = "EUR/USD"
-    case EURGBP = "EUR/GBP"
-    case USDJPY = "USD/JPU"
-    case GBPUSD = "GBP/USD"
-    case USDCHF = "USD/CHF"
-    case USDCAD = "USD/CAD"
-    case AUDUSD = "AUD/USD"
-    case EURJPY = "EUR/JPY"
-    case EURCHF = "EUR/CHF"
-}
+
 
 class SettingsTableViewController: UITableViewController {
 
-    let dataSource = SettingsDataSource()
+    var settings: Settings! {
+        didSet {
+            self.dataSource = SettingsDataSource(settings: settings)
+        }
+    }
+    private var dataSource: SettingsDataSource!
 
     override func viewDidLoad() {
         super.viewDidLoad()
