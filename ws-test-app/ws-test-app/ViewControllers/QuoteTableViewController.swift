@@ -32,10 +32,32 @@ class QuoteTableViewController: UITableViewController, UIPopoverPresentationCont
         dataSource = QuoteDataSource(table: self.tableView, aSettings: self.settings)
         tableView.dataSource = dataSource
         dataSource.update()
+        self.navigationItem.leftBarButtonItem = self.editButtonItem
     }
 
     func popoverPresentationControllerDidDismissPopover(_ popoverPresentationController: UIPopoverPresentationController) {
         dataSource.update()
         settings.save()
+    }
+
+    override func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCellEditingStyle {
+        return .none
+    }
+
+    override func tableView(_ tableView: UITableView, shouldIndentWhileEditingRowAt indexPath: IndexPath) -> Bool {
+        return false
+    }
+
+    override func tableView(_ tableView: UITableView, targetIndexPathForMoveFromRowAt sourceIndexPath: IndexPath, toProposedIndexPath proposedDestinationIndexPath: IndexPath) -> IndexPath {
+        if proposedDestinationIndexPath.row < dataSource.sortedItems.count {
+            return proposedDestinationIndexPath
+        } else {
+            return sourceIndexPath
+        }
+    }
+
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        super.setEditing(editing, animated: animated)
+        self.dataSource.pause = editing
     }
 }

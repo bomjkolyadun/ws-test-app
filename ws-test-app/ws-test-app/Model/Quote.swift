@@ -11,15 +11,13 @@ import UIKit
 class Quote: NSObject {
 
     private(set) public var symbol: String
-    private(set) public var bid: String
-    private(set) public var ask: String
-    private(set) public var spread: String
+    public var bid: String = ""
+    public var ask: String = ""
+    public var spread: String = ""
+    public var hidden: Bool = false
 
-    init(sym: String, b: String, a: String, spr: String) {
+    init(sym: String) {
         symbol = sym
-        bid = b
-        ask = a
-        spread = spr
         super.init()
     }
 }

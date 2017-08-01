@@ -12,6 +12,38 @@ public extension NSNotification.Name {
     static let tickUpdateNotification = Notification.Name("tickUpdate")
 }
 
+fileprivate class QuotePool {
+
+    var ticks: [Symbol: Quote] = [:]
+    var tickArray: [Symbol]  = []
+
+    private func defaultTicks() -> [Symbol: Quote] {
+        var result: [Symbol: Quote] = [:]
+        for sym in Symbol.allValues {
+            let quote = Quote(sym: sym.rawValue)
+            result[sym] = quote
+        }
+        return result
+    }
+
+    init() {
+        ticks = defaultTicks()
+        let defaults = UserDefaults.standard
+        let serializeArray = (Array(Symbol.allValues).map({ (sym: Symbol) -> String in
+            return sym.rawValue
+        }))
+        defaults.register(defaults: ["sortOrderKey": serializeArray])
+        let rawArray = defaults.array(forKey: "sortOrderKey")
+        for key in rawArray! {
+            let tick = Symbol(rawValue: key as! String)!
+            tickArray.append(tick)
+        }
+    }
+
+    func quote(sym: Symbol) -> Quote {
+        return ticks[sym]!
+    }
+}
 
 class QuoteContainer: NSObject {
 
@@ -20,7 +52,7 @@ class QuoteContainer: NSObject {
         return manager
     }()
 
-    private var ticks: [Symbol : Quote] = [:]
+    private let quotePool = QuotePool()
 
     override init() {
         super.init()
@@ -36,31 +68,62 @@ class QuoteContainer: NSObject {
 
             for tick in ticks {
                 guard let sym = (tick["s"] as? String),
-                      let ask = (tick["a"] as? String),
-                      let bid = (tick["b"] as? String),
-                      let spr = (tick["spr"] as? String) else {
+                    let ask = (tick["a"] as? String),
+                    let bid = (tick["b"] as? String),
+                    let spr = (tick["spr"] as? String) else {
                         return
                 }
-                let quote = Quote(sym: sym, b: bid, a: ask, spr: spr)
-                let key = Symbol(rawValue: sym)
-                self.ticks[key!] = quote
+                let key = Symbol(rawValue: sym)!
+                let quote = self.quotePool.quote(sym: key)
+                quote.ask = ask
+                quote.bid = bid
+                quote.spread = spr
             }
             NotificationCenter.default.post(name: .tickUpdateNotification, object: self)
         }
     }
 
-    func subscribe(sym: Set<Symbol>) {
-        requestManager.subscribe(symbols: sym)
-    }
-
-    func unsubscribe(sym: Set<Symbol>) {
-        requestManager.unsubscribe(symbols: sym)
-        for symbol in sym {
-            ticks.removeValue(forKey: symbol)
+    func subscribe(symbols: Set<Symbol>) {
+        requestManager.subscribe(symbols: symbols)
+        for sym in symbols {
+            quotePool.quote(sym: sym).hidden = false
         }
     }
 
+    func unsubscribe(symbols: Set<Symbol>) {
+        requestManager.unsubscribe(symbols: symbols)
+        for sym in symbols {
+            quotePool.quote(sym: sym).hidden = true
+        }
+    }
+
+    func move(from: Int, to: Int) {
+        let val1 = Symbol(rawValue: (items()[from]).symbol)!
+        let val2 = Symbol(rawValue: (items()[to]).symbol)!
+        let indexOfFirst = quotePool.tickArray.index(of: val1)!
+        let indexOfSecond = quotePool.tickArray.index(of: val2)!
+        quotePool.tickArray.remove(at: indexOfFirst)
+        if (indexOfSecond > indexOfFirst) {
+            quotePool.tickArray.insert(val1, at: indexOfSecond-1)
+        } else {
+            quotePool.tickArray.insert(val1, at: indexOfSecond)
+        }
+        let serializeArray = (quotePool.tickArray.map({ (sym: Symbol) -> String in
+            return sym.rawValue
+        }))
+        let defaults = UserDefaults.standard
+        defaults.set(serializeArray, forKey: "sortOrderKey")
+        defaults.synchronize()
+
+        NotificationCenter.default.post(name: .tickUpdateNotification, object: self)
+    }
+
     func items() -> [Quote] {
-        return Array(ticks.values)
+        let result =  quotePool.tickArray.map({ (sym) -> Quote in
+            quotePool.quote(sym: sym)
+        }).filter { (quote) -> Bool in
+            quote.hidden == false
+        }
+        return result
     }
 }

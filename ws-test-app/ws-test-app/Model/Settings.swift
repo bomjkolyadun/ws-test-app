@@ -19,11 +19,7 @@ class SymbolSetting {
 
 class Settings: NSObject {
 
-    private static let orderKey = "orderKey"
-
     private(set) var symsets: [SymbolSetting]!
-    var sortOrder: [String: Int] = [:]
-
 
     override init() {
         super.init()
@@ -55,7 +51,6 @@ class Settings: NSObject {
         for setting in symsets {
             defaults.set(setting.selected, forKey: setting.symbol.rawValue)
         }
-        defaults.set(self.sortOrder, forKey: Settings.orderKey)
     }
 
     func enabledSymbols() -> Set<Symbol> {
