@@ -11,9 +11,9 @@ import UIKit
 class Quote: NSObject {
 
     private(set) public var symbol: String
-    public var bid: String = ""
-    public var ask: String = ""
-    public var spread: String = ""
+    public var bid: String = "--"
+    public var ask: String = "--"
+    public var spread: String = "--"
     public var hidden: Bool = false
 
     init(sym: String) {

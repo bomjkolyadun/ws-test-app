@@ -17,15 +17,6 @@ fileprivate class QuotePool {
     var ticks: [Symbol: Quote] = [:]
     var tickArray: [Symbol]  = []
 
-    private func defaultTicks() -> [Symbol: Quote] {
-        var result: [Symbol: Quote] = [:]
-        for sym in Symbol.allValues {
-            let quote = Quote(sym: sym.rawValue)
-            result[sym] = quote
-        }
-        return result
-    }
-
     init() {
         ticks = defaultTicks()
         let defaults = UserDefaults.standard
@@ -43,19 +34,32 @@ fileprivate class QuotePool {
     func quote(sym: Symbol) -> Quote {
         return ticks[sym]!
     }
+
+    private func defaultTicks() -> [Symbol: Quote] {
+        var result: [Symbol: Quote] = [:]
+        for sym in Symbol.allValues {
+            let quote = Quote(sym: sym.rawValue)
+            result[sym] = quote
+        }
+        return result
+    }
 }
 
 class QuoteContainer: NSObject {
 
-    let requestManager: RequestManager = { () -> RequestManager in
+    static let updatedSymbolsKey = "updatedSymbols"
+
+    private(set) var items: [Quote] = []
+
+    private let quotePool = QuotePool()
+    private let requestManager: RequestManager = { () -> RequestManager in
         let manager = RequestManager()
         return manager
     }()
 
-    private let quotePool = QuotePool()
-
     override init() {
         super.init()
+        items = rebuildItems()
         requestManager.updateBlock = { (_ data: Data) -> Void in
             let response = try! JSONSerialization.jsonObject(with: data, options: []) as! [String: Any]
             var list: [String: Any]
@@ -65,7 +69,7 @@ class QuoteContainer: NSObject {
                 list = response
             }
             guard let ticks = (list["ticks"] as? [[String: Any]]) else { return }
-
+            var updatedSymbols: [Quote] = []
             for tick in ticks {
                 guard let sym = (tick["s"] as? String),
                     let ask = (tick["a"] as? String),
@@ -75,11 +79,13 @@ class QuoteContainer: NSObject {
                 }
                 let key = Symbol(rawValue: sym)!
                 let quote = self.quotePool.quote(sym: key)
+                updatedSymbols.append(quote)
                 quote.ask = ask
                 quote.bid = bid
                 quote.spread = spr
             }
-            NotificationCenter.default.post(name: .tickUpdateNotification, object: self)
+            self.items = self.rebuildItems()
+            NotificationCenter.default.post(name: .tickUpdateNotification, object: self, userInfo: [QuoteContainer.updatedSymbolsKey : updatedSymbols])
         }
     }
 
@@ -98,27 +104,23 @@ class QuoteContainer: NSObject {
     }
 
     func move(from: Int, to: Int) {
-        let val1 = Symbol(rawValue: (items()[from]).symbol)!
-        let val2 = Symbol(rawValue: (items()[to]).symbol)!
+        let val1 = Symbol(rawValue: (items[from]).symbol)!
+        let val2 = Symbol(rawValue: (items[to]).symbol)!
         let indexOfFirst = quotePool.tickArray.index(of: val1)!
-        let indexOfSecond = quotePool.tickArray.index(of: val2)!
         quotePool.tickArray.remove(at: indexOfFirst)
-        if (indexOfSecond > indexOfFirst) {
-            quotePool.tickArray.insert(val1, at: indexOfSecond-1)
-        } else {
-            quotePool.tickArray.insert(val1, at: indexOfSecond)
-        }
+        let indexOfSecond = quotePool.tickArray.index(of: val2)!
+        quotePool.tickArray.insert(val1, at: indexOfSecond+1)
         let serializeArray = (quotePool.tickArray.map({ (sym: Symbol) -> String in
             return sym.rawValue
         }))
         let defaults = UserDefaults.standard
         defaults.set(serializeArray, forKey: "sortOrderKey")
         defaults.synchronize()
-
+        items = rebuildItems()
         NotificationCenter.default.post(name: .tickUpdateNotification, object: self)
     }
 
-    func items() -> [Quote] {
+    private func rebuildItems() -> [Quote] {
         let result =  quotePool.tickArray.map({ (sym) -> Quote in
             quotePool.quote(sym: sym)
         }).filter { (quote) -> Bool in
@@ -126,4 +128,6 @@ class QuoteContainer: NSObject {
         }
         return result
     }
+
+
 }

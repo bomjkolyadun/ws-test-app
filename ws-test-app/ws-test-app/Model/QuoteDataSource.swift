@@ -12,23 +12,39 @@ class QuoteDataSource: NSObject, UITableViewDataSource {
 
     static let reuseId = "QuoteCell"
     let container = QuoteContainer()
-    var sortedItems: [Quote] = []
+    var sortedItems: [Quote]
     var settings: Settings
-    weak var table: UITableView?
-
     var pause: Bool = false
+    weak var table: UITableView?
 
     init(table tbl: UITableView, aSettings: Settings) {
         settings = aSettings
-        super.init()
+        sortedItems = container.items
         table = tbl
-        NotificationCenter.default.addObserver(forName: .tickUpdateNotification, object: container, queue: OperationQueue.main ) { _ in
-            self.sortedItems = self.container.items()
+        super.init()
+
+        NotificationCenter.default.addObserver(forName: .tickUpdateNotification, object: container, queue: OperationQueue.main ) { note in
+            let newItems = self.container.items
+            let reloadSection = (self.sortedItems.count != newItems.count)
+            self.sortedItems = newItems
             if self.pause {
                 return
             }
+            let userInfo = note.userInfo!
+            let updates = userInfo[QuoteContainer.updatedSymbolsKey] as! [Quote]
+            var indexes: [IndexPath] = []
+            for quote in updates {
+                guard let index = self.sortedItems.index(of: quote) else {
+                    continue
+                }
+                indexes.append(IndexPath(row: index, section: 0))
+            }
             self.table?.beginUpdates()
-            self.table?.reloadSections(IndexSet(integer: 0), with: .none)
+            if !reloadSection {
+                self.table?.reloadRows(at: indexes, with: .none)
+            } else {
+                self.table?.reloadSections(IndexSet(integer: 0), with: .none)
+            }
             self.table?.endUpdates()
         }
     }
@@ -57,7 +73,6 @@ class QuoteDataSource: NSObject, UITableViewDataSource {
         if sourceIndexPath.row == destinationIndexPath.row {
             return
         } else {
-
             tableView.beginUpdates()
             self.container.move(from: sourceIndexPath.row , to: destinationIndexPath.row)
             tableView.moveRow(at: sourceIndexPath, to: destinationIndexPath)
