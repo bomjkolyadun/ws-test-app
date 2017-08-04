@@ -16,4 +16,4 @@ This is a reference implementation of WebSockets using a Third-Party API.
 - Launch the app and test the result.
 
 ## Third-Party Libs
-- AFNetworking – to simplify client-server interactions.
+- SwiftWebSocket – to simplify web-socket interactions.
